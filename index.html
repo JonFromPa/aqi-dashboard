@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPA Air Quality NowCast AQI Dashboard</title>
+    <!-- Tailwind CSS for utility styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Font for sleek, clean styling -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+        /* Custom scrollbar style */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 antialiased relative">
+
+    <div class="max-w-7xl mx-auto px-4 py-6 md:py-10">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <div>
+                <span class="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full uppercase tracking-wider">Live Air Quality Network</span>
+                <h1 class="text-3xl font-extrabold text-slate-900 mt-2">EPA NowCast AQI Analysis</h1>
+                <p class="text-slate-500 mt-1">Comparing real-time PM2.5 and Ozone pollution at State College and Moshannon, PA.</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="reloadData()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm transition-all shadow-sm flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.253 8H18"></path></svg>
+                    Refresh Station Data
+                </button>
+            </div>
+        </header>
+
+        <!-- AQI Alert Banner or Status Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div class="p-3 bg-red-50 text-red-600 rounded-xl flex-shrink-0">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <div class="w-full min-w-0">
+                    <h3 class="text-sm font-semibold text-slate-500 uppercase mb-1">Worst Recorded Level</h3>
+                    <div id="worst-aqi-list" class="space-y-1.5">
+                        <div class="text-xs text-slate-400 animate-pulse">Calculating peak levels...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div class="p-3 bg-purple-50 text-purple-600 rounded-xl">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-500 uppercase">Primary Pollutant</h3>
+                    <p class="text-2xl font-bold text-purple-700">PM2.5 <span class="text-xs font-normal text-slate-400">(Fine Particulates)</span></p>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div class="p-3 bg-green-50 text-green-600 rounded-xl">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-500 uppercase">Network Connection</h3>
+                    <p id="data-status" class="text-2xl font-bold text-emerald-600">Active</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historical Range Filter & Database Controls -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm mb-8">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                <!-- Left: Mode Switcher -->
+                <div class="space-y-1">
+                    <h2 class="text-lg font-bold text-slate-800">History & Storage Management</h2>
+                    <p class="text-sm text-slate-500">Enable historical logs to query and display multi-day air quality metrics.</p>
+                    <div class="inline-flex rounded-lg p-0.5 bg-slate-100 mt-2">
+                        <button id="mode-live" onclick="setDashboardMode('live')" class="px-4 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-slate-800 shadow-sm">
+                            Live Feed (Last 24 Hours)
+                        </button>
+                        <button id="mode-history" onclick="setDashboardMode('history')" class="px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 hover:text-slate-800">
+                            Historical Range Filter
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Center: Date Selectors (Conditionally Enabled) -->
+                <div id="history-date-selectors" class="flex flex-wrap items-end gap-4 opacity-50 pointer-events-none transition-all duration-300">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Start Date</label>
+                        <input type="date" id="filter-start-date" value="2026-07-10" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">End Date</label>
+                        <input type="date" id="filter-end-date" value="2026-07-17" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <button onclick="applyDateRangeFilter()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm transition-all shadow-sm">
+                        Query Range
+                    </button>
+                </div>
+
+                <!-- Right: Database Utilities -->
+                <div class="flex flex-col items-end gap-2 self-stretch lg:self-auto border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100">
+                    <span id="storage-record-counter" class="text-xs font-semibold text-slate-500">Stored Records: <span class="text-slate-800 animate-pulse">Calculating...</span></span>
+                    <button onclick="openClearStorageModal()" class="px-3 py-1.5 border border-red-200 hover:bg-red-50 text-red-600 font-semibold rounded-lg text-xs transition-all shadow-sm">
+                        Clear Stored Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Workspace container -->
+        <div id="loading" class="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-slate-100">
+            <svg class="animate-spin h-10 w-10 text-indigo-600 mb-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p id="loading-text" class="text-slate-600 font-medium">Initializing visualization pipeline...</p>
+        </div>
+
+        <!-- Charts Container Grid -->
+        <div id="dashboard-grid" class="hidden space-y-10">
+            <!-- State College Chart Container -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-4 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center px-6">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <h2 class="font-bold text-slate-700 uppercase tracking-wider text-sm">Station 1: State College</h2>
+                    </div>
+                    <span class="text-xs text-slate-500">ID: 420270100</span>
+                </div>
+                <div class="p-6">
+                    <div id="chart-state-college" class="w-full h-[450px]"></div>
+                </div>
+            </div>
+
+            <!-- EPA AQI Color Standard Legend Section -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-950 mb-4">EPA AQI Standard Levels of Concern</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div class="p-3 rounded-xl bg-green-50 border border-green-200">
+                        <div class="w-4 h-4 rounded bg-[#00e400] mb-2"></div>
+                        <div class="text-xs font-bold text-green-800">Good</div>
+                        <div class="text-[10px] text-green-600">0 - 50 AQI</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-yellow-50 border border-yellow-200">
+                        <div class="w-4 h-4 rounded bg-[#ffff00] border border-yellow-300 mb-2"></div>
+                        <div class="text-xs font-bold text-yellow-800">Moderate</div>
+                        <div class="text-[10px] text-yellow-600">51 - 100 AQI</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-orange-50 border border-orange-200">
+                        <div class="w-4 h-4 rounded bg-[#ff7e00] mb-2"></div>
+                        <div class="text-xs font-bold text-orange-800">Sensitive Groups</div>
+                        <div class="text-[10px] text-orange-600">101 - 150 AQI</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-red-50 border border-red-200">
+                        <div class="w-4 h-4 rounded bg-[#ff0000] mb-2"></div>
+                        <div class="text-xs font-bold text-red-800">Unhealthy</div>
+                        <div class="text-[10px] text-red-600">151 - 200 AQI</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-purple-50 border border-purple-200">
+                        <div class="w-4 h-4 rounded bg-[#8f3f97] mb-2"></div>
+                        <div class="text-xs font-bold text-purple-800">Very Unhealthy</div>
+                        <div class="text-[10px] text-purple-600">201 - 300 AQI</div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-rose-50 border border-rose-200">
+                        <div class="w-4 h-4 rounded bg-[#7e0023] mb-2"></div>
+                        <div class="text-xs font-bold text-rose-800">Hazardous</div>
+                        <div class="text-[10px] text-rose-600">301+ AQI</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Moshannon Chart Container -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-4 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center px-6">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <h2 class="font-bold text-slate-700 uppercase tracking-wider text-sm">Station 2: Moshannon</h2>
+                    </div>
+                    <span class="text-xs text-slate-500">ID: 420334000</span>
+                </div>
+                <div class="p-6">
+                    <div id="chart-moshannon" class="w-full h-[450px]"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom In-App Modal Dialog for Safe Storage Cleansing -->
+    <div id="cleanup-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeClearStorageModal()"></div>
+        <!-- Modal Card -->
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl relative z-10 border border-slate-100 transform scale-95 transition-all duration-300">
+            <div class="flex items-start gap-4">
+                <div class="p-3 bg-red-100 text-red-600 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Manage Stored History</h3>
+                    <p class="text-sm text-slate-500 mt-1">Select a retention configuration to clean historical data from secure storage.</p>
+                </div>
+            </div>
+
+            <!-- Options Radio Group -->
+            <div class="mt-6 space-y-2">
+                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all">
+                    <input type="radio" name="cleanup-choice" value="all" checked class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800">All Time (App Reset)</div>
+                        <div class="text-[10px] text-slate-500">Purge all logged records and start blank.</div>
+                    </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all">
+                    <input type="radio" name="cleanup-choice" value="week" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800">Older than 1-Week</div>
+                        <div class="text-[10px] text-slate-500">Delete all logs recorded more than 7 days ago.</div>
+                    </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all">
+                    <input type="radio" name="cleanup-choice" value="month" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800">Older than 1-Month</div>
+                        <div class="text-[10px] text-slate-500">Delete records from over 30 days ago.</div>
+                    </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all">
+                    <input type="radio" name="cleanup-choice" value="3months" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800">Older than 3-Months</div>
+                        <div class="text-[10px] text-slate-500">Keep only logs written within the last 90 days.</div>
+                    </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all">
+                    <input type="radio" name="cleanup-choice" value="6months" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800">Older than 6-Months</div>
+                        <div class="text-[10px] text-slate-500">Prune any readings logged before the last 180 days.</div>
+                    </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-all">
+                    <input type="radio" name="cleanup-choice" value="current_year" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800">Keep Only the Current Year</div>
+                        <div class="text-[10px] text-slate-500">Instantly delete any records logged before 2026.</div>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="closeClearStorageModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-all">
+                    Cancel
+                </button>
+                <button id="modal-confirm-btn" onclick="executeStoragePrune()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-all">
+                    Prune Database
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Toast Notification -->
+    <div id="toast-notif" class="hidden fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3 transition-all duration-300">
+        <span id="toast-text" class="text-xs font-medium">Data saved successfully!</span>
+    </div>
+
+    <!-- Firebase Modular Setup Configuration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Exposing SDK utilities cleanly to global window scope for integrated controller use
+        window.F_SDK = { setDoc, getDocs, deleteDoc, doc, collection };
+
+        // Configuration checks
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        window.F_APP_ID = appId;
+
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            try {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                window.F_DB = getFirestore(app);
+
+                // Prioritizing Custom Token authentications
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                window.F_USER_ID = auth.currentUser ? auth.currentUser.uid : crypto.randomUUID();
+                console.log("Secure Firestore connection achieved: UID", window.F_USER_ID);
+                window.F_ACTIVE = true;
+            } catch (e) {
+                console.warn("Firebase credential connection failed. Defaulting to local sandbox-safe storage driver.", e);
+                window.F_ACTIVE = false;
+            }
+        } else {
+            console.log("No default Firebase config provided. Operating entirely inside sandbox-safe memory storage driver.");
+            window.F_ACTIVE = false;
+        }
+
+        // Notify client pipeline initialization completion
+        window.dispatchEvent(new CustomEvent('database-ready'));
+    </script>
+
+    <script>
+        /*
+          Fallback data structures containing exact real-time station metrics to ensure complete execution 
+          if sandboxed iFrame restrictions block outbound CORS network requests to S3 buckets.
+        */
+        const FALLBACK_STATE_COLLEGE = {
+            "siteName": "State College",
+            "stationID": "420270100",
+            "coordinates": [-77.8783, 40.7872],
+            "monitors": [{
+                "parameterName": "PM2.5 - Principal",
+                "parameterDisplayName": "PM2.5 - Principal - PM25",
+                "concUnit": "UG/M3",
+                "aqi": [115.0, 165.0, 220.0, 360.0, 390.0, 365.0, 370.0, 385.0, 400.0, 410.0, 375.0, 355.0, 305.0, 280.0, 255.0, 230.0, 215.0, 212.0, 210.0, 214.0, 217.0, 220.0, 223.0, 216.0]
+            }],
+            "utcOffset": -4.0,
+            "utcDateTimes": [
+                "2026-07-16 15:00:00","2026-07-16 16:00:00","2026-07-16 17:00:00","2026-07-16 18:00:00",
+                "2026-07-16 19:00:00","2026-07-16 20:00:00","2026-07-16 21:00:00","2026-07-16 22:00:00",
+                "2026-07-16 23:00:00","2026-07-17 00:00:00","2026-07-17 01:00:00","2026-07-17 02:00:00",
+                "2026-07-17 03:00:00","2026-07-17 04:00:00","2026-07-17 05:00:00","2026-07-16 06:00:00",
+                "2026-07-17 07:00:00","2026-07-17 08:00:00","2026-07-17 09:00:00","2026-07-17 10:00:00",
+                "2026-07-17 11:00:00","2026-07-17 12:00:00","2026-07-17 13:00:00","2026-07-17 14:00:00"
+            ]
+        };
+
+        const FALLBACK_MOSHANNON = {
+            "siteName": "Moshannon",
+            "stationID": "420334000",
+            "coordinates": [-78.5261, 41.1175],
+            "monitors": [{
+                "parameterName": "PM2.5 - Principal",
+                "parameterDisplayName": "PM2.5 - Principal - PM25",
+                "concUnit": "UG/M3",
+                "aqi": [249.0, 345.0, 382.0, 393.0, 423.0, 475.0, 506.0, 484.0, 436.0, 436.0, -999.0, -999.0, -999.0, -999.0, -999.0, -999.0, -999.0, -999.0, -999.0, 255.0, 255.0, 256.0, 242.0, 215.0]
+            }],
+            "utcOffset": -4.0,
+            "utcDateTimes": [
+                "2026-07-16 15:00:00","2026-07-16 16:00:00","2026-07-16 17:00:00","2026-07-16 18:00:00",
+                "2026-07-16 19:00:00","2026-07-16 20:00:00","2026-07-16 21:00:00","2026-07-16 22:00:00",
+                "2026-07-16 23:00:00","2026-07-17 00:00:00","2026-07-17 01:00:00","2026-07-17 02:00:00",
+                "2026-07-17 03:00:00","2026-07-17 04:00:00","2026-07-17 05:00:00","2026-07-17 06:00:00",
+                "2026-07-17 07:00:00","2026-07-17 08:00:00","2026-07-17 09:00:00","2026-07-17 10:00:00",
+                "2026-07-17 11:00:00","2026-07-17 12:00:00","2026-07-17 13:00:00","2026-07-17 14:00:00"
+            ]
+        };
+
+        const CDN_PACKAGES = [
+            {
+                name: "Cloudflare CDNJS",
+                urls: [
+                    "https://cdnjs.cloudflare.com/ajax/libs/highcharts/10.3.3/highcharts.js",
+                    "https://cdnjs.cloudflare.com/ajax/libs/highcharts/10.3.3/modules/exporting.min.js",
+                    "https://cdnjs.cloudflare.com/ajax/libs/highcharts/10.3.3/modules/export-data.min.js",
+                    "https://cdnjs.cloudflare.com/ajax/libs/highcharts/10.3.3/modules/accessibility.min.js"
+                ]
+            },
+            {
+                name: "jsDelivr NPM Mirror",
+                urls: [
+                    "https://cdn.jsdelivr.net/npm/highcharts@10.3.3/highcharts.js",
+                    "https://cdn.jsdelivr.net/npm/highcharts@10.3.3/modules/exporting.js",
+                    "https://cdn.jsdelivr.net/npm/highcharts@10.3.3/modules/export-data.js",
+                    "https://cdn.jsdelivr.net/npm/highcharts@10.3.3/modules/accessibility.js"
+                ]
+            }
+        ];
+
+        // Global State variables
+        let CURRENT_MODE = 'live'; // 'live' or 'history'
+        let LOCAL_AQI_DATABASE = []; // Safe backup array representing simulation db
+        let ACTIVE_LIVE_SC = null; // Storing active raw state college feed
+        let ACTIVE_LIVE_MO = null; // Storing active raw moshannon feed
+
+        function showToast(text) {
+            const toast = document.getElementById('toast-notif');
+            document.getElementById('toast-text').innerText = text;
+            toast.classList.remove('hidden', 'opacity-0');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.replace('opacity-100', 'opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3000);
+        }
+
+        function loadScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.type = 'text/javascript';
+                script.async = false;
+                script.crossOrigin = "anonymous";
+                script.onload = () => resolve(script);
+                script.onerror = () => reject(new Error(`Failed to load ${url}`));
+                document.head.appendChild(script);
+            });
+        }
+
+        async function tryLoadPackage(pkg) {
+            const loadedElements = [];
+            try {
+                for (const url of pkg.urls) {
+                    const el = await loadScript(url);
+                    loadedElements.push(el);
+                }
+                return true;
+            } catch (err) {
+                loadedElements.forEach(el => el.remove());
+                if (typeof Highcharts !== 'undefined') {
+                    delete window.Highcharts;
+                }
+                throw err;
+            }
+        }
+
+        async function loadHighchartsResiliently() {
+            const statusLabel = document.getElementById('loading-text');
+            for (const pkg of CDN_PACKAGES) {
+                try {
+                    statusLabel.innerText = `Loading visualization engine from ${pkg.name}...`;
+                    await tryLoadPackage(pkg);
+                    console.log(`Successfully initialized Highcharts using ${pkg.name}!`);
+                    return true;
+                } catch (e) {
+                    console.warn(`Mirror ${pkg.name} was blocked or timed out. Switching mirror...`);
+                }
+            }
+            throw new Error("All redundant charting CDN mirrors failed to resolve.");
+        }
+
+        /*
+          Safe Unified Data Persistence Layer
+          Strictly conforms to standard secure Firebase path patterns (Rule 1).
+          Falls back elegantly to memory arrays when no active connection persists.
+        */
+        async function fetchAllDatabaseRecords() {
+            if (window.F_ACTIVE) {
+                try {
+                    const cRef = window.F_SDK.collection(
+                        window.F_DB, 
+                        'artifacts', 
+                        window.F_APP_ID, 
+                        'users', 
+                        window.F_USER_ID, 
+                        'aqi_history'
+                    );
+                    const qSnap = await window.F_SDK.getDocs(cRef);
+                    const list = [];
+                    qSnap.forEach(docSnap => {
+                        list.push(docSnap.data());
+                    });
+                    return list;
+                } catch (e) {
+                    console.error("Firestore retrieval error, falling back to local memory simulation:", e);
+                    return LOCAL_AQI_DATABASE;
+                }
+            } else {
+                return LOCAL_AQI_DATABASE;
+            }
+        }
+
+        async function saveMultipleObservations(stationData) {
+            const utcOffset = stationData.utcOffset;
+            const pm25Monitor = stationData.monitors.find(m => m.parameterName.includes("PM2.5")) || stationData.monitors[0];
+            const promises = [];
+
+            pm25Monitor.aqi.forEach((aqiVal, idx) => {
+                const timestampStr = stationData.utcDateTimes[idx];
+                const key = `${stationData.stationID}_${timestampStr.replace(/[\s:]/g, '_')}`;
+
+                const record = {
+                    key: key,
+                    stationID: stationData.stationID,
+                    siteName: stationData.siteName,
+                    utcOffset: utcOffset,
+                    utcDateTime: timestampStr,
+                    aqi: aqiVal
+                };
+
+                if (window.F_ACTIVE) {
+                    try {
+                        const dRef = window.F_SDK.doc(
+                            window.F_DB, 
+                            'artifacts', 
+                            window.F_APP_ID, 
+                            'users', 
+                            window.F_USER_ID, 
+                            'aqi_history', 
+                            key
+                        );
+                        promises.push(window.F_SDK.setDoc(dRef, record));
+                    } catch (e) {
+                        console.error("Firestore write preparation failed", e);
+                    }
+                }
+
+                // Maintain local memory buffer
+                const foundIdx = LOCAL_AQI_DATABASE.findIndex(r => r.key === key);
+                if (foundIdx > -1) {
+                    LOCAL_AQI_DATABASE[foundIdx] = record;
+                } else {
+                    LOCAL_AQI_DATABASE.push(record);
+                }
+            });
+
+            if (window.F_ACTIVE && promises.length > 0) {
+                await Promise.all(promises);
+            }
+            updateDatabaseCounter();
+        }
+
+        // EPA AQI Category standard breakpoints
+        function getAQIStyle(value) {
+            if (value === null || value < 0) {
+                return { color: '#e2e8f0', name: 'No Data' };
+            }
+            if (value <= 50) return { color: '#00e400', name: 'Good' };
+            if (value <= 100) return { color: '#ffff00', name: 'Moderate' };
+            if (value <= 150) return { color: '#ff7e00', name: 'Unhealthy for Sensitive Groups' };
+            if (value <= 200) return { color: '#ff0000', name: 'Unhealthy' };
+            if (value <= 300) return { color: '#8f3f97', name: 'Very Unhealthy' };
+            return { color: '#7e0023', name: 'Hazardous' };
+        }
+
+        // Helper: Convert UTC string adjusted by hour offset to local date object (Timezone Agnostic)
+        // Added +1 hour adjustment to offset the 1-hour lag in the source UTC timestamps.
+        function parseToLocalDate(utcString, offset) {
+            const parts = utcString.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
+            const ONE_HOUR_IN_MS = 60 * 60 * 1000;
+            
+            if (!parts) {
+                const rawDate = new Date(utcString.replace(' ', 'T') + 'Z');
+                return new Date(rawDate.getTime() + (offset * 60 * 60 * 1000) + ONE_HOUR_IN_MS);
+            }
+            
+            const year = parseInt(parts[1], 10);
+            const month = parseInt(parts[2], 10) - 1; // 0-indexed
+            const day = parseInt(parts[3], 10);
+            const hour = parseInt(parts[4], 10);
+            const minute = parseInt(parts[5], 10);
+            const second = parseInt(parts[6], 10);
+            
+            const utcMs = Date.UTC(year, month, day, hour, minute, second);
+            return new Date(utcMs + (offset * 60 * 60 * 1000) + ONE_HOUR_IN_MS);
+        }
+
+        // Formatter: Custom label structure (e.g., "12 PM", "3 PM", "6 AM")
+        function formatXAxisHour(dateObj) {
+            let hours = dateObj.getUTCHours();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; 
+            return `${hours} ${ampm}`;
+        }
+
+        const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        function getOrdinalSuffix(day) {
+            if (day > 3 && day < 21) return 'th';
+            switch (day % 10) {
+                case 1:  return "st";
+                case 2:  return "nd";
+                case 3:  return "rd";
+                default: return "th";
+            }
+        }
+
+        function formatFriendlyLabel(dateObj) {
+            const dayOfWeek = DAYS_OF_WEEK[dateObj.getUTCDay()];
+            const monthName = MONTHS[dateObj.getUTCMonth()];
+            const dayOfMonth = dateObj.getUTCDate();
+            return `${dayOfWeek}, ${monthName} ${dayOfMonth}`;
+        }
+
+        function formatFullDateTimeStr(dateObj) {
+            const monthName = MONTHS[dateObj.getUTCMonth()];
+            const dayOfMonth = dateObj.getUTCDate();
+            const suffix = getOrdinalSuffix(dayOfMonth);
+            const year = dateObj.getUTCFullYear();
+            const timeLabel = formatXAxisHour(dateObj);
+            return `${monthName} ${dayOfMonth}${suffix}, ${year} ${timeLabel}`;
+        }
+
+        function formatTitleDate(dateObj) {
+            const monthName = MONTHS[dateObj.getUTCMonth()];
+            const dayOfMonth = dateObj.getUTCDate();
+            const year = dateObj.getUTCFullYear();
+            return `${monthName} ${dayOfMonth}, ${year}`;
+        }
+
+        function formatHourTimeline(dateObj) {
+            let hours = dateObj.getUTCHours();
+            const ampm = hours >= 12 ? 'pm' : 'am';
+            hours = hours % 12;
+            hours = hours ? hours : 12; 
+            return `${hours}${ampm}`;
+        }
+
+        const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+        function formatTimelineDate(dateObj) {
+            const monthName = MONTHS_FULL[dateObj.getUTCMonth()];
+            const dayOfMonth = dateObj.getUTCDate();
+            const suffix = getOrdinalSuffix(dayOfMonth);
+            const timeLabel = formatHourTimeline(dateObj);
+            return `${monthName} ${dayOfMonth}${suffix} ${timeLabel}`;
+        }
+
+        async function updateDatabaseCounter() {
+            const countLabel = document.getElementById('storage-record-counter');
+            try {
+                const records = await fetchAllDatabaseRecords();
+                countLabel.innerHTML = `Stored Records: <span class="text-indigo-600 font-bold">${records.length}</span>`;
+            } catch (e) {
+                countLabel.innerText = "Stored Records: Error";
+            }
+        }
+
+        // Switch modes: Live vs Historical Custom Query Panels
+        function setDashboardMode(mode) {
+            CURRENT_MODE = mode;
+            const btnLive = document.getElementById('mode-live');
+            const btnHistory = document.getElementById('mode-history');
+            const panelRange = document.getElementById('history-date-selectors');
+
+            if (mode === 'live') {
+                btnLive.className = "px-4 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-slate-800 shadow-sm";
+                btnHistory.className = "px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 hover:text-slate-800";
+                panelRange.classList.add('opacity-50', 'pointer-events-none');
+                
+                // Re-render charts based on current raw live buffer
+                if (ACTIVE_LIVE_SC && ACTIVE_LIVE_MO) {
+                    renderStationChart('chart-state-college', ACTIVE_LIVE_SC);
+                    renderStationChart('chart-moshannon', ACTIVE_LIVE_MO);
+                    updateWorstRecordedLevels(ACTIVE_LIVE_SC, ACTIVE_LIVE_MO);
+                }
+            } else {
+                btnHistory.className = "px-4 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-slate-800 shadow-sm";
+                btnLive.className = "px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 hover:text-slate-800";
+                panelRange.classList.remove('opacity-50', 'pointer-events-none');
+                showToast("Date filter activated. Configure date range & click 'Query Range'.");
+            }
+        }
+
+        /*
+          Assembles flattened historical database rows back into compliant Station DTO shapes 
+          so they can utilize our existing Highcharts render functions cleanly.
+        */
+        function assembleStationDataFromRows(stationID, siteName, records) {
+            const filtered = records
+                .filter(r => r.stationID === stationID)
+                .sort((a,b) => {
+                    const da = parseToLocalDate(a.utcDateTime, a.utcOffset);
+                    const db = parseToLocalDate(b.utcDateTime, b.utcOffset);
+                    return da.getTime() - db.getTime();
+                });
+
+            if (filtered.length === 0) return null;
+
+            const utcOffset = filtered[0].utcOffset;
+            const utcDateTimes = filtered.map(r => r.utcDateTime);
+            const aqiValues = filtered.map(r => r.aqi);
+
+            return {
+                siteName: siteName,
+                stationID: stationID,
+                utcOffset: utcOffset,
+                utcDateTimes: utcDateTimes,
+                monitors: [{
+                    parameterName: "PM2.5 - Principal",
+                    aqi: aqiValues
+                }]
+            };
+        }
+
+        async function applyDateRangeFilter() {
+            const startVal = document.getElementById('filter-start-date').value;
+            const endVal = document.getElementById('filter-end-date').value;
+
+            if (!startVal || !endVal) {
+                showToast("Please provide valid start and end dates.");
+                return;
+            }
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('dashboard-grid').classList.add('hidden');
+            document.getElementById('loading-text').innerText = "Querying secure log entries...";
+
+            try {
+                const rawRecords = await fetchAllDatabaseRecords();
+                
+                // Normalizing picker date boundaries
+                const startDate = new Date(startVal + 'T00:00:00');
+                const endDate = new Date(endVal + 'T23:59:59');
+
+                // Filter rows falling cleanly into selected timeframe
+                const filteredRows = rawRecords.filter(r => {
+                    const recordLocalDate = parseToLocalDate(r.utcDateTime, r.utcOffset);
+                    return recordLocalDate >= startDate && recordLocalDate <= endDate;
+                });
+
+                const scStation = assembleStationDataFromRows("420270100", "State College", filteredRows);
+                const moStation = assembleStationDataFromRows("420334000", "Moshannon", filteredRows);
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('dashboard-grid').classList.remove('hidden');
+
+                if (!scStation && !moStation) {
+                    showToast("No records found for that range. Re-saving live parameters.");
+                    // Draw dummy empty setups
+                    renderEmptyMessage('chart-state-college', 'State College');
+                    renderEmptyMessage('chart-moshannon', 'Moshannon');
+                } else {
+                    if (scStation) renderStationChart('chart-state-college', scStation);
+                    else renderEmptyMessage('chart-state-college', 'State College');
+
+                    if (moStation) renderStationChart('chart-moshannon', moStation);
+                    else renderEmptyMessage('chart-moshannon', 'Moshannon');
+
+                    // Compute maximum limits based purely on the queried parameters
+                    updateWorstRecordedLevels(scStation, moStation);
+                    showToast(`Loaded ${filteredRows.length} matched observations.`);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Historical extraction failed.");
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function renderEmptyMessage(containerId, siteName) {
+            const emptyEl = document.getElementById(containerId);
+            emptyEl.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20 bg-slate-50 border border-dashed border-slate-200 rounded-xl">
+                    <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">${siteName}</p>
+                    <p class="text-xs text-slate-400">No historical records saved in database matching this date filter.</p>
+                </div>
+            `;
+        }
+
+        // Custom interactive clean storage modal controls
+        function openClearStorageModal() {
+            const modal = document.getElementById('cleanup-modal');
+            modal.classList.remove('hidden');
+        }
+
+        function closeClearStorageModal() {
+            const modal = document.getElementById('cleanup-modal');
+            modal.classList.add('hidden');
+        }
+
+        async function executeStoragePrune() {
+            const btn = document.getElementById('modal-confirm-btn');
+            btn.innerText = "Pruning...";
+            btn.disabled = true;
+
+            const choice = document.querySelector('input[name="cleanup-choice"]:checked').value;
+            const records = await fetchAllDatabaseRecords();
+            const now = new Date(); // Current context July 17, 2026
+            
+            let toDeleteKeys = [];
+
+            records.forEach(r => {
+                const recordLocalDate = parseToLocalDate(r.utcDateTime, r.utcOffset);
+                const diffTime = Math.abs(now - recordLocalDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                let shouldDelete = false;
+
+                if (choice === 'all') {
+                    shouldDelete = true;
+                } else if (choice === 'week' && diffDays > 7) {
+                    shouldDelete = true;
+                } else if (choice === 'month' && diffDays > 30) {
+                    shouldDelete = true;
+                } else if (choice === '3months' && diffDays > 90) {
+                    shouldDelete = true;
+                } else if (choice === '6months' && diffDays > 180) {
+                    shouldDelete = true;
+                } else if (choice === 'current_year' && recordLocalDate.getFullYear() !== 2026) {
+                    shouldDelete = true;
+                }
+
+                if (shouldDelete) {
+                    toDeleteKeys.push(r.key);
+                }
+            });
+
+            const promises = [];
+            
+            // Delete matching elements
+            toDeleteKeys.forEach(key => {
+                if (window.F_ACTIVE) {
+                    try {
+                        const dRef = window.F_SDK.doc(
+                            window.F_DB, 
+                            'artifacts', 
+                            window.F_APP_ID, 
+                            'users', 
+                            window.F_USER_ID, 
+                            'aqi_history', 
+                            key
+                        );
+                        promises.push(window.F_SDK.deleteDoc(dRef));
+                    } catch (e) {
+                        console.error("Firestore single document delete error", e);
+                    }
+                }
+                LOCAL_AQI_DATABASE = LOCAL_AQI_DATABASE.filter(item => item.key !== key);
+            });
+
+            if (window.F_ACTIVE && promises.length > 0) {
+                await Promise.all(promises);
+            }
+
+            btn.innerText = "Prune Database";
+            btn.disabled = false;
+            closeClearStorageModal();
+            updateDatabaseCounter();
+            showToast(`Deleted ${toDeleteKeys.length} matching entries.`);
+
+            // If we are currently filtered on historical query, trigger refresh automatically
+            if (CURRENT_MODE === 'history') {
+                applyDateRangeFilter();
+            }
+        }
+
+        async function reloadData() {
+            const statusLabel = document.getElementById('loading-text');
+            statusLabel.innerText = "Connecting to air monitoring network...";
+            
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('dashboard-grid').classList.add('hidden');
+            
+            let stateCollegeData;
+            let moshannonData;
+
+            try {
+                const responseSC = await fetch("https://an_gov_data.s3.amazonaws.com/Sites/420270100.json");
+                const responseMO = await fetch("https://an_gov_data.s3.amazonaws.com/Sites/420334000.json");
+
+                if (!responseSC.ok || !responseMO.ok) throw new Error("CORS or Network issue");
+
+                stateCollegeData = await responseSC.json();
+                moshannonData = await responseMO.json();
+                document.getElementById('data-status').innerText = 'Active';
+                document.getElementById('data-status').className = 'text-2xl font-bold text-emerald-600';
+            } catch (error) {
+                console.warn("Outbound fetch failed. Reverting gracefully to local mock records.", error);
+                
+                stateCollegeData = FALLBACK_STATE_COLLEGE;
+                moshannonData = FALLBACK_MOSHANNON;
+                
+                document.getElementById('data-status').innerText = 'Offline (Cached)';
+                document.getElementById('data-status').className = 'text-2xl font-bold text-amber-600';
+            }
+
+            // Lock live references to memory buffer
+            ACTIVE_LIVE_SC = stateCollegeData;
+            ACTIVE_LIVE_MO = moshannonData;
+
+            // Automatically log new incoming data points cleanly to the database (asynchronously)
+            await saveMultipleObservations(stateCollegeData);
+            await saveMultipleObservations(moshannonData);
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('dashboard-grid').classList.remove('hidden');
+
+            if (CURRENT_MODE === 'live') {
+                updateWorstRecordedLevels(stateCollegeData, moshannonData);
+                renderStationChart('chart-state-college', stateCollegeData);
+                renderStationChart('chart-moshannon', moshannonData);
+            } else {
+                applyDateRangeFilter();
+            }
+        }
+
+        function updateWorstRecordedLevels(scData, moData) {
+            const scMon = scData ? (scData.monitors.find(m => m.parameterName.includes("PM2.5")) || scData.monitors[0]) : null;
+            const moMon = moData ? (moData.monitors.find(m => m.parameterName.includes("PM2.5")) || moData.monitors[0]) : null;
+
+            const scMax = scMon ? Math.max(...scMon.aqi.filter(v => v !== -999.0 && v !== null)) : -1;
+            const moMax = moMon ? Math.max(...moMon.aqi.filter(v => v !== -999.0 && v !== null)) : -1;
+
+            const scStyle = getAQIStyle(scMax);
+            const moStyle = getAQIStyle(moMax);
+
+            const worstListHTML = `
+                <div class="flex items-center justify-between text-xs border-b border-slate-100 pb-1.5">
+                    <span class="font-medium text-slate-600 truncate mr-2">State College</span>
+                    <span class="font-bold flex-shrink-0" style="color: ${scStyle.color === '#ffff00' ? '#b58900' : scStyle.color}">
+                        ${scMax > -1 ? `${scMax} AQI` : 'N/A'} <span class="text-[10px] font-normal text-slate-400">(${scStyle.name.split(' ')[0]})</span>
+                    </span>
+                </div>
+                <div class="flex items-center justify-between text-xs pt-0.5">
+                    <span class="font-medium text-slate-600 truncate mr-2">Moshannon</span>
+                    <span class="font-bold flex-shrink-0" style="color: ${moStyle.color === '#ffff00' ? '#b58900' : moStyle.color}">
+                        ${moMax > -1 ? `${moMax} AQI` : 'N/A'} <span class="text-[10px] font-normal text-slate-400">(${moStyle.name.split(' ')[0]})</span>
+                    </span>
+                </div>
+            `;
+            document.getElementById('worst-aqi-list').innerHTML = worstListHTML;
+        }
+
+        function renderStationChart(containerId, data) {
+            const utcOffset = data.utcOffset;
+            const pm25Monitor = data.monitors.find(m => m.parameterName.includes("PM2.5")) || data.monitors[0];
+            
+            const categories = [];
+            const seriesData = [];
+
+            pm25Monitor.aqi.forEach((aqiVal, i) => {
+                const dateObj = parseToLocalDate(data.utcDateTimes[i], utcOffset);
+                const axisLabel = formatXAxisHour(dateObj);
+                categories.push(axisLabel);
+
+                const finalVal = (aqiVal === -999.0 || aqiVal === null) ? null : aqiVal;
+                const style = getAQIStyle(finalVal);
+
+                const friendlyLabel = formatFriendlyLabel(dateObj);
+                const fullDateTimeStr = formatFullDateTimeStr(dateObj);
+
+                seriesData.push({
+                    y: finalVal,
+                    color: style.color,
+                    aqiCategory: style.name,
+                    stationName: data.siteName,
+                    friendlyLabel: friendlyLabel,
+                    fullDateTimeStr: fullDateTimeStr,
+                    exactTime: dateObj.toISOString().replace('T', ' ').substring(0, 16)
+                });
+            });
+
+            const sampleDate = parseToLocalDate(data.utcDateTimes[data.utcDateTimes.length - 1], utcOffset);
+            const titleDate = formatTitleDate(sampleDate);
+
+            const firstDateObj = parseToLocalDate(data.utcDateTimes[0], utcOffset);
+            const lastDateObj = parseToLocalDate(data.utcDateTimes[data.utcDateTimes.length - 1], utcOffset);
+            const startRangeStr = formatTimelineDate(firstDateObj);
+            const endRangeStr = formatTimelineDate(lastDateObj);
+            const rangeSubtitle = `${startRangeStr} &lt;&gt; ${endRangeStr}`;
+
+            Highcharts.chart(containerId, {
+                chart: {
+                    type: 'column',
+                    backgroundColor: '#f8f9fa',
+                    plotBackgroundColor: '#f1f3f5',
+                    style: {
+                        fontFamily: 'Inter, sans-serif'
+                    }
+                },
+                title: {
+                    text: `<div style="text-align: center; line-height: 1.35;">
+                        <span style="font-weight: 600; font-size: 22px; color: #1e293b;">${data.siteName} (${titleDate})</span>
+                        <br/>
+                        <span style="font-size: 13px; color: #64748b; font-weight: normal; margin-top: 4px; display: inline-block; letter-spacing: 0.2px;">
+                            Timeline: ${rangeSubtitle}
+                        </span>
+                    </div>`,
+                    useHTML: true,
+                    margin: 40
+                },
+                xAxis: {
+                    categories: categories,
+                    tickInterval: 3, 
+                    title: {
+                        text: 'Local Time',
+                        style: {
+                            color: '#64748b',
+                            fontWeight: '500'
+                        }
+                    },
+                    labels: {
+                        style: {
+                            color: '#64748b'
+                        }
+                    },
+                    gridLineWidth: 1,
+                    gridLineColor: '#e2e8f0',
+                    crosshair: {
+                        color: 'rgba(147, 197, 253, 0.5)',
+                        width: 24,
+                        zIndex: 1
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: 'NowCast Air Quality Index (AQI)',
+                        opposite: true,
+                        style: {
+                            color: '#64748b',
+                            fontWeight: '500'
+                        }
+                    },
+                    labels: {
+                        align: 'left',
+                        x: 10,
+                        style: {
+                            color: '#64748b'
+                        }
+                    },
+                    opposite: true,
+                    min: 0,
+                    max: containerId.includes('moshannon') ? 500 : 450, 
+                    tickInterval: 50,
+                    gridLineColor: '#e2e8f0'
+                },
+                legend: {
+                    enabled: false
+                },
+                tooltip: {
+                    shared: false,
+                    useHTML: true,
+                    backgroundColor: '#ffffff',
+                    borderColor: '#9333ea',
+                    borderWidth: 1.5,
+                    borderRadius: 8,
+                    shadow: true,
+                    padding: 0, 
+                    style: {
+                        padding: '0px' 
+                    },
+                    formatter: function() {
+                        const p = this.point;
+                        return `
+                            <div class="p-3 text-slate-700 leading-normal" style="min-width: 170px; box-sizing: border-box;">
+                                <div class="text-[11px] text-slate-500">${p.friendlyLabel}</div>
+                                <div class="text-xs font-semibold mb-1">${p.fullDateTimeStr}</div>
+                                <div class="text-xs"><b>NowCast AQI:</b> <span class="font-bold">${this.y}</span></div>
+                                <div class="text-xs"><b>Pollutant:</b> PM2.5</div>
+                                <div class="text-xs"><b>Category:</b> <span class="font-medium" style="color: ${p.color === '#ffff00' ? '#b58900' : p.color}">${p.aqiCategory}</span></div>
+                            </div>
+                        `;
+                    }
+                },
+                plotOptions: {
+                    column: {
+                        pointPadding: 0.1,
+                        groupPadding: 0.15,
+                        borderWidth: 1,
+                        borderColor: '#64748b',
+                        states: {
+                            hover: {
+                                brightness: 0.05
+                            }
+                        }
+                    }
+                },
+                series: [{
+                    name: 'AQI Level',
+                    data: seriesData
+                }],
+                exporting: {
+                    enabled: true,
+                    buttons: {
+                        contextButton: {
+                            symbolStroke: '#475569',
+                            theme: {
+                                fill: '#ffffff',
+                                states: {
+                                    hover: {
+                                        fill: '#f1f5f9'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                credits: {
+                    enabled: false
+                }
+            });
+        }
+
+        async function startApp() {
+            try {
+                await loadHighchartsResiliently();
+                await reloadData();
+                await updateDatabaseCounter();
+            } catch (err) {
+                document.getElementById('loading-text').className = "text-red-600 font-semibold";
+                document.getElementById('loading-text').innerText = `Critical error: ${err.message}. Please reload.`;
+            }
+        }
+
+        // Wait until database system module exposes dependencies cleanly
+        window.addEventListener('database-ready', startApp);
+    </script>
+</body>
+</html>
+
