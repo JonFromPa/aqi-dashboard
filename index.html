@@ -284,6 +284,17 @@
 
     <!-- Firebase Modular Setup Configuration -->
     <script type="module">
+        window.__firebase_config = JSON.stringify({
+  apiKey: "AIzaSyBJd3VpLSlWR2LI8kWuRzyApaBI9UFrraA",
+  authDomain: "aqi-dashboard-4ce5b.firebaseapp.com",
+  projectId: "aqi-dashboard-4ce5b",
+  storageBucket: "aqi-dashboard-4ce5b.firebasestorage.app",
+  messagingSenderId: "748237823645",
+  appId: "1:748237823645:web:bbdc9cb8f6381fe42bfe74"
+});
+
+        window.__app_id = "aqi_tracker_v1";
+         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, collection, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
